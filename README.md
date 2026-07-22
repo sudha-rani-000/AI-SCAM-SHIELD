@@ -2,7 +2,8 @@
 
 A full-stack scam & phishing detection platform — a React dashboard covering
 message, URL, website, QR, email, and voice scanning, an AI assistant, and
-scan history, backed by an Express + MongoDB API with real user auth.
+scan history, backed by an Express + MongoDB API with real user auth and
+Google Gemini-powered scam detection.
 
 ---
 
@@ -14,9 +15,9 @@ scan history, backed by an Express + MongoDB API with real user auth.
   real bcrypt + JWT auth on the server.
 - **Dashboard Overview** — AI security score gauge, total scans, threats
   blocked, safe-website count, and per-category stat cards.
-- **AI Scam Scanner** — paste any email/SMS/chat message, get a scored
-  verdict from a heuristic scam-language detector, with a full animated
-  scan sequence (beam → radar → result reveal).
+- **AI Scam Scanner** — paste any email/SMS/chat message and get a scored
+  verdict from **Google Gemini**, with a full animated scan sequence
+  (beam → radar → result reveal).
 - **URL Scanner** — checks any URL against phishing-style structural
   patterns (HTTPS, raw IPs, punycode, shorteners, suspicious TLDs) with a
   trust-score gauge, threat-level bar, and recently-scanned list.
@@ -48,6 +49,7 @@ scan history, backed by an Express + MongoDB API with real user auth.
 **Backend**
 - Node.js + Express
 - MongoDB + Mongoose
+- Google Gemini API (text/message scam detection)
 - JWT auth + bcrypt password hashing
 - dotenv, cors
 
@@ -81,7 +83,7 @@ cd AI-SCAM-SHIELD
 cd backend
 npm install
 cp .env.example .env
-# edit .env: set MONGODB_URI (MongoDB Atlas) and JWT_SECRET
+# edit .env: set MONGODB_URI (MongoDB Atlas), JWT_SECRET, and GEMINI_API_KEY
 npm run dev
 ```
 Runs on `http://localhost:4000` by default.
@@ -110,10 +112,14 @@ The backend needs a `.env` file (see `backend/.env.example` for the template):
 |---|---|
 | `MONGODB_URI` | Your MongoDB Atlas (or local) connection string |
 | `JWT_SECRET` | Any long random string for signing tokens |
+| `GEMINI_API_KEY` | API key from Google AI Studio, powers the text/message scam scanner |
 | `PORT` | Backend port (default `4000`) |
 | `CLIENT_ORIGIN` | Frontend origin for CORS (default `http://localhost:5173`) |
 
-`.env` is git-ignored on purpose — never commit real credentials.
+`.env` is git-ignored on purpose — never commit real credentials. If any of
+these values are ever exposed (screenshot, shared chat, accidental commit),
+rotate them: change the MongoDB user's password in Atlas, regenerate the
+Gemini key, and generate a fresh `JWT_SECRET`.
 
 ---
 
