@@ -2,28 +2,30 @@
 
 A full-stack scam & phishing detection platform — a React dashboard covering
 message, URL, website, QR, email, and voice scanning, an AI assistant, and
-scan history, backed by an Express + MongoDB API with real user auth and
-Google Gemini-powered scam detection.
+scan history, backed by an Express + MongoDB API with real user auth.
 
 ---
 
 ## ✨ Features
 
+### ✅ Working now
 - **Landing page** — animated hero, radar-sweep shield visual, live stats,
   feature grid, FAQ, testimonials.
 - **Auth** — signup/login with a live password-strength meter, backed by
   real bcrypt + JWT auth on the server.
+- **AI Scam Scanner** — paste any email/SMS/chat message and get a verdict
+  (`isScam`, `riskLevel`, `reasons`, `summary`) from Google's Gemini API.
+
+### 🚧 Planned / not yet built
 - **Dashboard Overview** — AI security score gauge, total scans, threats
   blocked, safe-website count, and per-category stat cards.
-- **AI Scam Scanner** — paste any email/SMS/chat message and get a scored
-  verdict from **Google Gemini**, with a full animated scan sequence
-  (beam → radar → result reveal).
+- **AI Scam Scanner** — paste any email/SMS/chat message, get a scored
+  verdict from a heuristic scam-language detector, with a full animated
+  scan sequence (beam → radar → result reveal).
 - **URL Scanner** — checks any URL against phishing-style structural
-  patterns (HTTPS, raw IPs, punycode, shorteners, suspicious TLDs) with a
-  trust-score gauge, threat-level bar, and recently-scanned list.
+  patterns (HTTPS, raw IPs, punycode, shorteners, suspicious TLDs).
 - **Website Scanner** — live preview of a site plus a structural threat
-  report (HTTPS validity, IP-literal hostnames, brand-impersonation
-  patterns, shortener detection, subdomain structure).
+  report.
 - **QR Scanner** — scan a QR code and run the decoded URL/text through the
   same scam-detection pipeline.
 - **Email Scanner** — analyze email content/headers for phishing indicators.
@@ -31,8 +33,9 @@ Google Gemini-powered scam detection.
 - **AI Assistant** — conversational helper for scam-related questions.
 - **Scan History** — searchable log of every past scan.
 - **Profile & Settings** — account management.
-- **Persistent history** — every scan is saved per-user in MongoDB via
-  the backend API, not just kept in the browser.
+- **Persistent history in MongoDB** — the backend currently stores users
+  in-memory (data resets on server restart). Switching to MongoDB is planned
+  for persistent, per-user scan history.
 
 ---
 
@@ -49,8 +52,8 @@ Google Gemini-powered scam detection.
 **Backend**
 - Node.js + Express
 - MongoDB + Mongoose
-- Google Gemini API (text/message scam detection)
 - JWT auth + bcrypt password hashing
+- Google Gemini API (`@google/generative-ai`) for scam analysis
 - dotenv, cors
 
 ---
@@ -61,7 +64,14 @@ Google Gemini-powered scam detection.
 ai-scam-shield/
 ├── frontend/
 │   └── ai-scam-shield/       React + Vite app (see its own README)
-└── backend/                  Express + MongoDB API (see its own README)
+└── backend/                  Express API (see its own README)
+    ├── server.js
+    └── src/
+        ├── controllers/      authController.js, scamController.js
+        ├── models/           User.js (in-memory)
+        ├── middleware/       auth.js (JWT verification)
+        ├── routes/           auth.js, scam.js
+        └── lib/              gemini.js, generateToken.js
 ```
 
 Each half has its own detailed README:
@@ -83,7 +93,7 @@ cd AI-SCAM-SHIELD
 cd backend
 npm install
 cp .env.example .env
-# edit .env: set MONGODB_URI (MongoDB Atlas), JWT_SECRET, and GEMINI_API_KEY
+# edit .env: set MONGODB_URI (MongoDB Atlas) and JWT_SECRET
 npm run dev
 ```
 Runs on `http://localhost:4000` by default.
@@ -99,8 +109,6 @@ Runs on `http://localhost:5173` by default.
 
 ### 4. Open the app
 Visit `http://localhost:5173` in your browser, then try `/signup` or `/login`.
-Once signed in you land on `/dashboard`, with every scanner available from
-the sidebar.
 
 ---
 
@@ -110,19 +118,13 @@ The backend needs a `.env` file (see `backend/.env.example` for the template):
 
 | Variable | Description |
 |---|---|
-| `MONGODB_URI` | Your MongoDB Atlas (or local) connection string |
 | `JWT_SECRET` | Any long random string for signing tokens |
-| `GEMINI_API_KEY` | API key from Google AI Studio, powers the text/message scam scanner |
 | `PORT` | Backend port (default `4000`) |
 | `CLIENT_ORIGIN` | Frontend origin for CORS (default `http://localhost:5173`) |
 
-`.env` is git-ignored on purpose — never commit real credentials. If any of
-these values are ever exposed (screenshot, shared chat, accidental commit),
-rotate them: change the MongoDB user's password in Atlas, regenerate the
-Gemini key, and generate a fresh `JWT_SECRET`.
+`.env` is git-ignored on purpose — never commit real credentials.
 
 ---
 
 ## 📄 License
-
 Add your license of choice here (MIT, Apache-2.0, etc.).
