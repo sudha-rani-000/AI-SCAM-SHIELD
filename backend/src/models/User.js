@@ -1,44 +1,56 @@
+import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
 
-// In-memory "database" — resets when the server restarts
-const users = [];
-
-function attachHelpers(user) {
-  return {
-    ...user,
-    comparePassword(candidate) {
-      return bcrypt.compare(candidate, user.password);
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+      minlength: 2,
+      maxlength: 80,
     },
-    toSafeObject() {
-      return { id: user.id, name: user.name, email: user.email };
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: [/^\S+@\S+\.\S+$/, "Enter a valid email address"],
     },
-  };
-}
-
-const User = {
-  async findOne({ email }) {
-    const user = users.find((u) => u.email === email.toLowerCase());
-    return user ? attachHelpers(user) : null;
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: 8,
+      select: false, // never returned by default queries
+    },
   },
+  { timestamps: true }
+);
 
-  async findById(id) {
-    const user = users.find((u) => u.id === id);
-    return user ? attachHelpers(user) : null;
-  },
+// Hash the password whenever it's set/changed
+userSchema.pre("save", async function hashPassword(next) {
+  if (!this.isModified("password")) return next();
 
-  async create({ name, email, password }) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = {
-      id: randomUUID(),
-      name,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      createdAt: new Date(),
-    };
-    users.push(user);
-    return attachHelpers(user);
-  },
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+userSchema.methods.comparePassword = function comparePassword(candidate) {
+  return bcrypt.compare(candidate, this.password);
 };
+
+// Shape returned to the frontend — never leaks the password hash
+userSchema.methods.toSafeObject = function toSafeObject() {
+  return {
+    id: this._id,
+    name: this.name,
+    email: this.email,
+    createdAt: this.createdAt,
+  };
+};
+
+const User = mongoose.model("User", userSchema);
 
 export default User;

@@ -2,10 +2,12 @@
 
 A real Express + MongoDB backend for the AI Scam Shield frontend: user
 auth (bcrypt + JWT) and the two scanners (message/text scam detector,
-URL/phishing analyzer), each backed by the same heuristic scoring logic
-already in the frontend's `src/lib/`, now running server-side so results
-get saved to a real per-user scan history instead of living only in the
-browser.
+URL/phishing analyzer). The URL scanner uses the same heuristic scoring
+logic already in the frontend's `src/lib/`, now running server-side.
+The message/text scam detector uses **Google Gemini** instead of the
+local heuristic scorer, so text scans get an AI-generated verdict
+rather than a rule-based score. All results are saved to a real
+per-user scan history instead of living only in the browser.
 
 ## Setup
 
@@ -13,7 +15,7 @@ browser.
 cd backend
 npm install
 cp .env.example .env
-# then edit .env: set MONGODB_URI (MongoDB Atlas) and JWT_SECRET
+# then edit .env: set MONGODB_URI (MongoDB Atlas), JWT_SECRET, and GEMINI_API_KEY
 npm run dev      # nodemon, restarts on changes
 # or
 npm start        # plain node
@@ -22,6 +24,26 @@ npm start        # plain node
 Server listens on `http://localhost:4000` by default (`PORT` in `.env`).
 CORS is locked to `CLIENT_ORIGIN` (defaults to the Vite dev server at
 `http://localhost:5173`).
+
+### MongoDB
+
+- `MONGODB_URI` must point at a real MongoDB instance — either a
+  MongoDB Atlas cluster or a local `mongod`.
+- For Atlas: **Database → Connect → Drivers**, copy the connection
+  string, and swap in your database user's username/password.
+- Make sure your current IP is allowlisted under **Network Access** in
+  Atlas, or the connection will hang/fail even with a correct URI.
+- The server fails fast with a clear error on startup if
+  `MONGODB_URI` is missing or unreachable.
+
+### Gemini
+
+- `GEMINI_API_KEY` is required for the text/message scam scanner —
+  without it, `POST /api/scans/text` will not work.
+- Get a key from Google AI Studio and paste it into `.env`.
+- Treat this key like a password: don't commit `.env`, and rotate the
+  key if it's ever exposed (e.g. shared in a screenshot, pasted in a
+  chat, or committed to a public repo).
 
 ## Structure
 
@@ -36,8 +58,8 @@ backend/
       User.js                 name, email, hashed password
       ScanHistory.js          one doc per scan (text or url), tied to a user
     lib/
-      scamDetector.js         server-side port of the message heuristic scorer
       urlAnalyzer.js          server-side port of the URL heuristic scorer
+      (Gemini integration for the text scanner — not yet organized into its own file)
     controllers/
       authController.js       register / login / getMe
       scanController.js       run + persist scans, history, stats
@@ -62,8 +84,8 @@ All request/response bodies are JSON. Protected routes require:
 | POST   | `/api/auth/register`     | no   | `{ name, email, password }`         | returns `{ user, token }` |
 | POST   | `/api/auth/login`        | no   | `{ email, password }`               | returns `{ user, token }` |
 | GET    | `/api/auth/me`           | yes  | —                                   | returns `{ user }` |
-| POST   | `/api/scans/text`        | yes  | `{ text }`                          | runs the message scorer, saves it, returns `{ result, scanId }` |
-| POST   | `/api/scans/url`         | yes  | `{ url }`                           | runs the URL scorer, saves it, returns `{ result, scanId }` |
+| POST   | `/api/scans/text`        | yes  | `{ text }`                          | runs the **Gemini-based** scam scorer, saves it, returns `{ result, scanId }` |
+| POST   | `/api/scans/url`         | yes  | `{ url }`                           | runs the heuristic URL scorer, saves it, returns `{ result, scanId }` |
 | GET    | `/api/scans`             | yes  | query: `type`, `page`, `limit`      | paginated scan history |
 | GET    | `/api/scans/:id`         | yes  | —                                   | a single saved scan |
 | DELETE | `/api/scans/:id`         | yes  | —                                   | deletes a saved scan |
@@ -96,3 +118,7 @@ The frontend currently calls `scanText()` / `analyzeUrl()` from
   after expiry.
 - `MONGODB_URI` must point at a real MongoDB instance (Atlas or local)
   for the server to start; it fails fast with a clear error if it's missing.
+- `GEMINI_API_KEY` must be set for the text scanner to work; requests
+  to `/api/scans/text` will fail without it.
+- Never commit `.env` — only `.env.example` (with placeholder values)
+  should be tracked in git.
